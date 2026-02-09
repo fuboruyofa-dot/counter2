@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Production Counter Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+        }
+        .card:hover {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .header-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .counter-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            border-radius: 16px;
+            text-align: center;
+        }
+        .counter-number {
+            font-size: 7rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            line-height: 1;
+            margin-bottom: 16px;
+        }
+        .status-badge {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 6px 14px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        .btn-action {
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-action:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .btn-action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-start {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        .btn-finish {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+        .btn-reset {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        .btn-save {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .stat-card {
+            background: white;
+            border-radius: 14px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .progress-container {
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            height: 24px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+            height: 100%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .info-item {
+            background: #f8fafc;
+            padding: 18px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-online {
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        .status-offline {
+            background: #ef4444;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .alert {
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 2px solid #f59e0b;
+        }
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+        }
+        @media (max-width: 768px) {
+            .counter-number {
+                font-size: 4rem;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="card rounded-2xl p-8 mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-4xl font-extrabold text-gray-900 mb-2 flex items-center gap-3">
+                    <i class="fas fa-industry text-purple-600"></i>
+                    Production Counter System
+                </h1>
+                <p class="text-gray-600 text-lg">Real-time Production Monitoring Dashboard</p>
+            </div>
+            <div class="text-left md:text-right">
+                <p class="text-3xl font-bold text-gray-900" id="clock">00:00:00</p>
+                <p class="text-gray-600 text-sm mt-1" id="date">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Counter Display -->
+        <div class="lg:col-span-2">
+            <div class="card rounded-2xl p-6">
+                <!-- Status Bar -->
+                <div class="flex items-center justify-between mb-6 p-4 bg-gray-50 rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <span class="status-indicator" id="statusIndicator"></span>
+                        <span class="font-semibold text-gray-700" id="statusText">Connecting...</span>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-gray-500 uppercase font-semibold">Last Update</p>
+                        <p class="text-sm font-bold text-gray-700" id="lastUpdate">-</p>
+                    </div>
+                </div>
+
+                <!-- Alert Container -->
+                <div id="alertContainer"></div>
+
+                <!-- Counter Display -->
+                <div class="counter-display mb-6">
+                    <div class="mb-4">
+                        <span class="status-badge" id="sessionStatus" style="background: rgba(255,255,255,0.2);">
+                            ● IDLE
+                        </span>
+                    </div>
+                    <div class="counter-number" id="counterValue">0</div>
+                    <div class="text-xl font-semibold opacity-90 mb-4">Current Count</div>
+                    
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar" style="width: 0%">
+                            <span id="progressText">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between text-lg font-semibold opacity-90">
+                        <span>Progress</span>
+                        <span><span id="currentCount">0</span> / <span id="targetDisplay">100</span></span>
+                    </div>
+                </div>
+
+                <!-- Info Grid -->
+                <div class="info-grid mb-6">
+                    <div class="info-item">
+                        <div class="text-xs font-bold text-gray-500 mb-2 uppercase">
+                            <i class="fas fa-user mr-1"></i> Operator
+                        </div>
+                        <div class="text-lg font-bold text-gray-900" id="operatorDisplay">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="text-xs font-bold text-gray-500 mb-2 uppercase">
+                            <i class="fas fa-box mr-1"></i> Product
+                        </div>
+                        <div class="text-lg font-bold text-gray-900" id="productDisplay">-</div>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="stat-card">
+                        <p class="stat-label"><i class="fas fa-list-ol mr-1"></i> Remaining</p>
+                        <p class="stat-value text-orange-600" id="remainingCount">100</p>
+                        <p class="text-xs text-gray-500 mt-1">pieces left</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-label"><i class="fas fa-chart-pie mr-1"></i> Completed</p>
+                        <p class="stat-value text-emerald-600" id="progressPercentage">0%</p>
+                        <p class="text-xs text-gray-500 mt-1">of target</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="space-y-6">
+            <!-- Configuration Card -->
+            <div class="card rounded-2xl p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <i class="fas fa-cog text-purple-600"></i>
+                    Configuration
+                </h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Operator Name</label>
+                        <input type="text" id="operatorInput" class="input-field" placeholder="Enter operator name">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Product Name</label>
+                        <input type="text" id="productInput" class="input-field" placeholder="Enter product name">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Target Count</label>
+                        <input type="number" id="targetInput" class="input-field" placeholder="Enter target" min="1">
+                    </div>
+
+                    <button class="btn-action btn-save w-full justify-center" onclick="updateConfiguration()">
+                        <i class="fas fa-save"></i>
+                        Save Configuration
+                    </button>
+                </div>
+            </div>
+
+            <!-- Control Buttons Card -->
+            <div class="card rounded-2xl p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <i class="fas fa-gamepad text-purple-600"></i>
+                    Session Control
+                </h2>
+
+                <div class="space-y-3">
+                    <button class="btn-action btn-start w-full justify-center" id="btnStart" onclick="startSession()">
+                        <i class="fas fa-play"></i>
+                        Start Session
+                    </button>
+
+                    <button class="btn-action btn-finish w-full justify-center" id="btnFinish" onclick="finishSession()" disabled>
+                        <i class="fas fa-flag-checkered"></i>
+                        Finish Session
+                    </button>
+
+                    <button class="btn-action btn-reset w-full justify-center" id="btnReset" onclick="resetSession()" disabled>
+                        <i class="fas fa-rotate-left"></i>
+                        Reset Session
+                    </button>
+                </div>
+
+                <div class="mt-6 p-4 bg-gray-50 rounded-xl">
+                    <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Session Info</p>
+                    <div class="space-y-1">
+                        <p class="text-sm text-gray-700"><span class="font-bold">Start:</span> <span id="startTime">-</span></p>
+                        <p class="text-sm text-gray-700"><span class="font-bold">Duration:</span> <span id="duration">-</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getDatabase, ref, onValue, set, update, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDROGzGRPxjwXJs4ukSdwgiSrUSt3wLE14",
+    authDomain: "coba-counter.firebaseapp.com",
+    databaseURL: "https://coba-counter-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "coba-counter",
+    storageBucket: "coba-counter.firebasestorage.app",
+    messagingSenderId: "1004514441681",
+    appId: "1:1004514441681:web:2c0b008fda3ffc7fd408f0"
+};
+
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+const counterRef = ref(database, 'counter');
+
+// Elements
+const counterValue = document.getElementById('counterValue');
+const currentCount = document.getElementById('currentCount');
+const targetDisplay = document.getElementById('targetDisplay');
+const operatorDisplay = document.getElementById('operatorDisplay');
+const productDisplay = document.getElementById('productDisplay');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+const remainingCount = document.getElementById('remainingCount');
+const progressPercentage = document.getElementById('progressPercentage');
+const statusIndicator = document.getElementById('statusIndicator');
+const statusText = document.getElementById('statusText');
+const lastUpdate = document.getElementById('lastUpdate');
+const alertContainer = document.getElementById('alertContainer');
+const sessionStatus = document.getElementById('sessionStatus');
+const startTime = document.getElementById('startTime');
+const duration = document.getElementById('duration');
+
+// Buttons
+const btnStart = document.getElementById('btnStart');
+const btnFinish = document.getElementById('btnFinish');
+const btnReset = document.getElementById('btnReset');
+
+let previousValue = 0;
+let animationTimer = null;
+let sessionStartTime = null;
+let durationInterval = null;
+
+// Listen for real-time updates
+onValue(counterRef, (snapshot) => {
+    const data = snapshot.val();
+    console.log('Firebase data received:', data);
+    
+    if (data) {
+        updateDisplay(data);
+        updateButtonStates(data);
+        
+        statusIndicator.classList.remove('status-offline');
+        statusIndicator.classList.add('status-online');
+        statusText.textContent = 'Connected';
+        
+        // Format timestamp
+        if (data.lastUpdate) {
+            const timestamp = Number(data.lastUpdate);
+            const date = new Date(timestamp);
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            lastUpdate.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        
+        // Update session time
+        if (data.sessionStatus === 'running' && data.startTime) {
+            sessionStartTime = data.startTime;
+            if (!durationInterval) {
+                durationInterval = setInterval(updateDuration, 1000);
+            }
+            const startDate = new Date(data.startTime);
+            startTime.textContent = startDate.toLocaleTimeString('id-ID');
+        } else {
+            if (durationInterval) {
+                clearInterval(durationInterval);
+                durationInterval = null;
+            }
+            if (data.sessionStatus === 'finished') {
+                startTime.textContent = data.startTime ? new Date(data.startTime).toLocaleTimeString('id-ID') : '-';
+                if (data.finishTime && data.startTime) {
+                    const dur = data.finishTime - data.startTime;
+                    duration.textContent = formatDuration(dur);
+                }
+            } else {
+                startTime.textContent = '-';
+                duration.textContent = '-';
+            }
+        }
+        
+        // Check if target reached
+        if (data.value >= data.target && previousValue < data.target) {
+            showAlert('success', '<i class="fas fa-trophy"></i> Target Reached! Great job!');
+        }
+        
+        previousValue = data.value || 0;
+    }
+}, (error) => {
+    console.error('Firebase error:', error);
+    statusIndicator.classList.remove('status-online');
+    statusIndicator.classList.add('status-offline');
+    statusText.textContent = 'Disconnected';
+});
+
+function updateDisplay(data) {
+    const count = data.value || 0;
+    const target = data.target || 100;
+    const progress = Math.min((count / target * 100), 100).toFixed(1);
+    const remaining = Math.max(target - count, 0);
+
+    // Update counter with animation
+    const currentDisplayValue = parseInt(counterValue.textContent) || 0;
+    if (currentDisplayValue !== count) {
+        animateValue(counterValue, currentDisplayValue, count, 300);
+    }
+    
+    currentCount.textContent = count;
+    targetDisplay.textContent = target;
+    operatorDisplay.textContent = data.operator || '-';
+    productDisplay.textContent = data.product || '-';
+    
+    // Update progress bar
+    progressBar.style.width = progress + '%';
+    progressText.textContent = progress + '%';
+    
+    // Update stats
+    remainingCount.textContent = remaining;
+    progressPercentage.textContent = progress + '%';
+    
+    // Update session status badge
+    const status = data.sessionStatus || 'idle';
+    if (status === 'running') {
+        sessionStatus.textContent = '● RUNNING';
+        sessionStatus.style.background = 'rgba(16, 185, 129, 0.9)';
+    } else if (status === 'finished') {
+        sessionStatus.textContent = '● FINISHED';
+        sessionStatus.style.background = 'rgba(59, 130, 246, 0.9)';
+    } else {
+        sessionStatus.textContent = '● IDLE';
+        sessionStatus.style.background = 'rgba(255, 255, 255, 0.2)';
+    }
+    
+    // Update input fields
+    document.getElementById('operatorInput').value = data.operator || '';
+    document.getElementById('productInput').value = data.product || '';
+    document.getElementById('targetInput').value = target;
+}
+
+function updateButtonStates(data) {
+    const status = data.sessionStatus || 'idle';
+    
+    if (status === 'running') {
+        btnStart.disabled = true;
+        btnFinish.disabled = false;
+        btnReset.disabled = false;
+    } else if (status === 'finished') {
+        btnStart.disabled = false;
+        btnFinish.disabled = true;
+        btnReset.disabled = false;
+    } else { // idle
+        btnStart.disabled = false;
+        btnFinish.disabled = true;
+        btnReset.disabled = true;
+    }
+}
+
+function animateValue(element, start, end, duration) {
+    if (animationTimer) {
+        clearInterval(animationTimer);
+    }
+
+    if (start === end) {
+        element.textContent = end;
+        return;
+    }
+
+    const range = end - start;
+    const steps = Math.min(Math.abs(range), 20);
+    const stepValue = range / steps;
+    const stepDuration = duration / steps;
+    let current = start;
+    let step = 0;
+    
+    animationTimer = setInterval(() => {
+        step++;
+        current += stepValue;
+        
+        if (step >= steps) {
+            element.textContent = end;
+            clearInterval(animationTimer);
+            animationTimer = null;
+        } else {
+            element.textContent = Math.round(current);
+        }
+    }, stepDuration);
+}
+
+function updateDuration() {
+    if (sessionStartTime) {
+        const now = Date.now();
+        const elapsed = now - sessionStartTime;
+        duration.textContent = formatDuration(elapsed);
+    }
+}
+
+function formatDuration(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function showAlert(type, message) {
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type}">
+            ${message}
+        </div>
+    `;
+    
+    setTimeout(() => {
+        alertContainer.innerHTML = '';
+    }, 5000);
+}
+
+// Update configuration
+window.updateConfiguration = async function() {
+    const operator = document.getElementById('operatorInput').value.trim();
+    const product = document.getElementById('productInput').value.trim();
+    const target = parseInt(document.getElementById('targetInput').value);
+
+    if (!operator || !product || !target || target < 1) {
+        showAlert('warning', '<i class="fas fa-exclamation-triangle"></i> Please fill all fields correctly!');
+        return;
+    }
+
+    try {
+        const snapshot = await get(counterRef);
+        const currentData = snapshot.val() || {};
+        const currentValue = currentData.value || 0;
+
+        await update(counterRef, {
+            operator: operator,
+            product: product,
+            target: target,
+            progress: Math.min((currentValue / target * 100), 100),
+            lastUpdate: Date.now()
+        });
+
+        showAlert('success', '<i class="fas fa-check-circle"></i> Configuration updated successfully!');
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('warning', '<i class="fas fa-times-circle"></i> Failed to update configuration');
+    }
+};
+
+// Start session
+window.startSession = async function() {
+    try {
+        const snapshot = await get(counterRef);
+        const data = snapshot.val() || {};
+        
+        if (!data.operator || !data.product) {
+            showAlert('warning', '<i class="fas fa-exclamation-triangle"></i> Please set operator and product first!');
+            return;
+        }
+
+        const now = Date.now();
+        await update(counterRef, {
+            sessionStatus: 'running',
+            value: 0,
+            progress: 0,
+            startTime: now,
+            finishTime: null,
+            lastUpdate: now
+        });
+
+        showAlert('success', '<i class="fas fa-play-circle"></i> Session started! Counter reset to 0');
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('warning', '<i class="fas fa-times-circle"></i> Failed to start session');
+    }
+};
+
+// Finish session
+window.finishSession = async function() {
+    if (!confirm('Finish this session? This will stop counting.')) return;
+
+    try {
+        const now = Date.now();
+        await update(counterRef, {
+            sessionStatus: 'finished',
+            finishTime: now,
+            lastUpdate: now
+        });
+
+        showAlert('info', '<i class="fas fa-flag-checkered"></i> Session finished!');
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('warning', '<i class="fas fa-times-circle"></i> Failed to finish session');
+    }
+};
+
+// Reset session
+window.resetSession = async function() {
+    if (!confirm('Reset session? This will clear all data and return to idle state.')) return;
+
+    try {
+        const snapshot = await get(counterRef);
+        const data = snapshot.val() || {};
+        
+        await update(counterRef, {
+            sessionStatus: 'idle',
+            value: 0,
+            progress: 0,
+            startTime: null,
+            finishTime: null,
+            lastUpdate: Date.now()
+        });
+
+        showAlert('success', '<i class="fas fa-rotate-left"></i> Session reset successfully!');
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('warning', '<i class="fas fa-times-circle"></i> Failed to reset session');
+    }
+};
+
+// Clock and Date
+function updateDateTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+    
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const dayName = days[now.getDay()];
+    const day = now.getDate();
+    const month = months[now.getMonth()];
+    const year = now.getFullYear();
+    document.getElementById('date').textContent = `${dayName}, ${day} ${month} ${year}`;
+}
+
+updateDateTime();
+setInterval(updateDateTime, 1000);
+</script>
+
+</body>
+</html>
