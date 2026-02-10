@@ -3,7 +3,7 @@ import { getDatabase, ref, onValue, set, update, get } from 'https://www.gstatic
 
 const firebaseConfig = {
     apiKey: "AIzaSyDROGzGRPxjwXJs4ukSdwgiSrUSt3wLE14",
-    authDomain: "coba-counter.firebaseapp.com",
+    authDomain: "coba-counter.firebasestorage.app",
     databaseURL: "https://coba-counter-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "coba-counter",
     storageBucket: "coba-counter.firebasestorage.app",
@@ -22,12 +22,14 @@ const currentCount = document.getElementById('currentCount');
 const targetDisplay = document.getElementById('targetDisplay');
 const operatorDisplay = document.getElementById('operatorDisplay');
 const productDisplay = document.getElementById('productDisplay');
+const layerDisplay = document.getElementById('layerDisplay');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
 const remainingCount = document.getElementById('remainingCount');
 const progressPercentage = document.getElementById('progressPercentage');
 const statusIndicator = document.getElementById('statusIndicator');
 const statusText = document.getElementById('statusText');
+const deviceStatus = document.getElementById('deviceStatus');
 const lastUpdate = document.getElementById('lastUpdate');
 const alertContainer = document.getElementById('alertContainer');
 const sessionStatus = document.getElementById('sessionStatus');
@@ -36,6 +38,7 @@ const duration = document.getElementById('duration');
 
 // Buttons
 const btnStart = document.getElementById('btnStart');
+const btnPause = document.getElementById('btnPause');
 const btnFinish = document.getElementById('btnFinish');
 const btnReset = document.getElementById('btnReset');
 
@@ -44,6 +47,7 @@ let animationTimer = null;
 let sessionStartTime = null;
 let durationInterval = null;
 let allHistoryData = [];
+let productHistoryData = {}; // Store previous sessions by product name
 
 // Listen for real-time updates
 onValue(counterRef, (snapshot) => {
@@ -56,6 +60,17 @@ onValue(counterRef, (snapshot) => {
         statusIndicator.classList.remove('status-offline');
         statusIndicator.classList.add('status-online');
         statusText.textContent = 'Connected';
+        
+        // Update device status
+        if (data.deviceOnline) {
+            deviceStatus.classList.remove('text-red-600');
+            deviceStatus.classList.add('text-green-600');
+            deviceStatus.innerHTML = '<i class="fas fa-circle text-green-500 mr-1"></i> Device Online';
+        } else {
+            deviceStatus.classList.remove('text-green-600');
+            deviceStatus.classList.add('text-red-600');
+            deviceStatus.innerHTML = '<i class="fas fa-circle text-red-500 mr-1"></i> Device Offline';
+        }
         
         if (data.lastUpdate) {
             const timestamp = Number(data.lastUpdate);
@@ -73,6 +88,18 @@ onValue(counterRef, (snapshot) => {
             }
             const startDate = new Date(data.startTime);
             startTime.textContent = startDate.toLocaleTimeString('id-ID');
+        } else if (data.sessionStatus === 'paused' && data.startTime) {
+            sessionStartTime = data.startTime;
+            if (durationInterval) {
+                clearInterval(durationInterval);
+                durationInterval = null;
+            }
+            const startDate = new Date(data.startTime);
+            startTime.textContent = startDate.toLocaleTimeString('id-ID');
+            if (data.finishTime && data.startTime) {
+                const dur = data.finishTime - data.startTime;
+                duration.textContent = formatDuration(dur);
+            }
         } else {
             if (durationInterval) {
                 clearInterval(durationInterval);
@@ -106,6 +133,7 @@ onValue(counterRef, (snapshot) => {
 function updateDisplay(data) {
     const count = data.value || 0;
     const target = data.target || 100;
+    const layers = data.layerCount || 1;
     const progress = Math.min((count / target * 100), 100).toFixed(1);
     const remaining = Math.max(target - count, 0);
 
@@ -118,6 +146,7 @@ function updateDisplay(data) {
     targetDisplay.textContent = target;
     operatorDisplay.textContent = data.operator || '-';
     productDisplay.textContent = data.product || '-';
+    layerDisplay.textContent = layers;
     
     progressBar.style.width = progress + '%';
     progressText.textContent = progress + '%';
@@ -129,6 +158,9 @@ function updateDisplay(data) {
     if (status === 'running') {
         sessionStatus.textContent = '● RUNNING';
         sessionStatus.style.background = 'rgba(16, 185, 129, 0.9)';
+    } else if (status === 'paused') {
+        sessionStatus.textContent = '● PAUSED';
+        sessionStatus.style.background = 'rgba(251, 191, 36, 0.9)';
     } else if (status === 'finished') {
         sessionStatus.textContent = '● FINISHED';
         sessionStatus.style.background = 'rgba(59, 130, 246, 0.9)';
@@ -140,6 +172,7 @@ function updateDisplay(data) {
     document.getElementById('operatorInput').value = data.operator || '';
     document.getElementById('productInput').value = data.product || '';
     document.getElementById('targetInput').value = target;
+    document.getElementById('layerInput').value = layers;
 }
 
 function updateButtonStates(data) {
@@ -147,14 +180,25 @@ function updateButtonStates(data) {
     
     if (status === 'running') {
         btnStart.disabled = true;
+        btnPause.disabled = false;
+        btnFinish.disabled = false;
+        btnReset.disabled = false;
+    } else if (status === 'paused') {
+        btnStart.disabled = false;
+        btnStart.innerHTML = '<i class="fas fa-play"></i> Resume Session';
+        btnPause.disabled = true;
         btnFinish.disabled = false;
         btnReset.disabled = false;
     } else if (status === 'finished') {
         btnStart.disabled = false;
+        btnStart.innerHTML = '<i class="fas fa-play"></i> Start Session';
+        btnPause.disabled = true;
         btnFinish.disabled = true;
         btnReset.disabled = false;
     } else {
         btnStart.disabled = false;
+        btnStart.innerHTML = '<i class="fas fa-play"></i> Start Session';
+        btnPause.disabled = true;
         btnFinish.disabled = true;
         btnReset.disabled = true;
     }
@@ -219,13 +263,50 @@ function showAlert(type, message) {
     }, 5000);
 }
 
+// Load product history for continuation feature
+async function loadProductHistory() {
+    try {
+        const snapshot = await get(historyRef);
+        const historyData = snapshot.val();
+        
+        if (historyData) {
+            productHistoryData = {};
+            
+            Object.keys(historyData).forEach(dateKey => {
+                const dayData = historyData[dateKey];
+                
+                if (dayData.Session) {
+                    Object.keys(dayData.Session).forEach(sessionKey => {
+                        const session = dayData.Session[sessionKey];
+                        const productName = session.product;
+                        
+                        if (productName && productName !== 'Unknown') {
+                            if (!productHistoryData[productName]) {
+                                productHistoryData[productName] = {
+                                    totalCount: 0,
+                                    totalTarget: session.target || 0,
+                                    lastSession: session
+                                };
+                            }
+                            productHistoryData[productName].totalCount += session.Count || 0;
+                        }
+                    });
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading product history:', error);
+    }
+}
+
 // Configuration
 window.updateConfiguration = async function() {
     const operator = document.getElementById('operatorInput').value.trim();
     const product = document.getElementById('productInput').value.trim();
     const target = parseInt(document.getElementById('targetInput').value);
+    const layers = parseInt(document.getElementById('layerInput').value) || 1;
 
-    if (!operator || !product || !target || target < 1) {
+    if (!operator || !product || !target || target < 1 || layers < 1) {
         showAlert('warning', '<i class="fas fa-exclamation-triangle"></i> Please fill all fields correctly!');
         return;
     }
@@ -233,12 +314,24 @@ window.updateConfiguration = async function() {
     try {
         const snapshot = await get(counterRef);
         const currentData = snapshot.val() || {};
-        const currentValue = currentData.value || 0;
+        
+        // Check if product changed
+        const previousProduct = currentData.product;
+        let currentValue = currentData.value || 0;
+        
+        // If product name matches previous history, load previous progress
+        if (product !== previousProduct && productHistoryData[product]) {
+            const previousData = productHistoryData[product];
+            currentValue = previousData.totalCount;
+            showAlert('info', `<i class="fas fa-info-circle"></i> Continuing previous session for ${product}. Current count: ${currentValue}`);
+        }
 
         await update(counterRef, {
             operator: operator,
             product: product,
             target: target,
+            layerCount: layers,
+            value: currentValue,
             progress: Math.min((currentValue / target * 100), 100),
             lastUpdate: Date.now()
         });
@@ -250,7 +343,7 @@ window.updateConfiguration = async function() {
     }
 };
 
-// Start session
+// Start or Resume session
 window.startSession = async function() {
     try {
         const snapshot = await get(counterRef);
@@ -262,24 +355,52 @@ window.startSession = async function() {
         }
 
         const now = Date.now();
-        const sessionId = 'Session_' + String(Date.now()).slice(-6);
         
-        await update(counterRef, {
-            sessionStatus: 'running',
-            value: 0,
-            progress: 0,
-            startTime: now,
-            finishTime: null,
-            downtime: 0,
-            efficiency: 0,
-            lastUpdate: now,
-            currentSessionId: sessionId
-        });
+        // Check if resuming from pause
+        if (data.sessionStatus === 'paused') {
+            await update(counterRef, {
+                sessionStatus: 'running',
+                lastUpdate: now
+            });
+            showAlert('success', '<i class="fas fa-play-circle"></i> Session resumed!');
+        } else {
+            // Starting new session
+            const sessionId = 'Session_' + String(Date.now()).slice(-6);
+            
+            await update(counterRef, {
+                sessionStatus: 'running',
+                value: data.value || 0, // Keep existing value if product continues
+                progress: data.progress || 0,
+                startTime: now,
+                finishTime: null,
+                downtime: 0,
+                efficiency: 100,
+                lastUpdate: now,
+                currentSessionId: sessionId
+            });
 
-        showAlert('success', '<i class="fas fa-play-circle"></i> Session started! Counter reset to 0');
+            showAlert('success', '<i class="fas fa-play-circle"></i> Session started!');
+        }
     } catch (error) {
         console.error('Error:', error);
         showAlert('warning', '<i class="fas fa-times-circle"></i> Failed to start session');
+    }
+};
+
+// Pause session
+window.pauseSession = async function() {
+    try {
+        const now = Date.now();
+        
+        await update(counterRef, {
+            sessionStatus: 'paused',
+            lastUpdate: now
+        });
+
+        showAlert('info', '<i class="fas fa-pause-circle"></i> Session paused');
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('warning', '<i class="fas fa-times-circle"></i> Failed to pause session');
     }
 };
 
@@ -296,7 +417,7 @@ window.finishSession = async function() {
         const totalDuration = now - (data.startTime || now);
         const downtime = data.downtime || 0;
         const activeDuration = totalDuration - downtime;
-        const efficiency = totalDuration > 0 ? ((activeDuration / totalDuration) * 100).toFixed(1) : 0;
+        const efficiency = totalDuration > 0 ? ((activeDuration / totalDuration) * 100).toFixed(1) : 100;
         
         // Update counter status
         await update(counterRef, {
@@ -315,6 +436,7 @@ window.finishSession = async function() {
             operator: data.operator || 'Unknown',
             product: data.product || 'Unknown',
             target: data.target || 100,
+            layers: data.layerCount || 1,
             timestamp: now,
             startTime: data.startTime || now,
             finishTime: now,
@@ -339,6 +461,9 @@ window.finishSession = async function() {
         }
         
         await set(ref(database, `history/${dateKey}/totalCount`), totalCount);
+
+        // Reload product history
+        await loadProductHistory();
 
         showAlert('info', '<i class="fas fa-flag-checkered"></i> Session finished and saved to history!');
     } catch (error) {
@@ -396,7 +521,7 @@ window.loadHistory = async function() {
         if (!historyData) {
             document.getElementById('historyBody').innerHTML = `
                 <tr>
-                    <td colspan="11" class="text-center text-gray-500 py-8">
+                    <td colspan="12" class="text-center text-gray-500 py-8">
                         <i class="fas fa-inbox text-4xl mb-2"></i>
                         <p>No history data yet</p>
                     </td>
@@ -446,7 +571,7 @@ window.loadHistory = async function() {
         console.error('Error loading history:', error);
         document.getElementById('historyBody').innerHTML = `
             <tr>
-                <td colspan="11" class="text-center text-red-500 py-8">
+                <td colspan="12" class="text-center text-red-500 py-8">
                     <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
                     <p>Error loading history</p>
                 </td>
@@ -461,7 +586,7 @@ function renderHistoryTable(data) {
     if (data.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="11" class="text-center text-gray-500 py-8">
+                <td colspan="12" class="text-center text-gray-500 py-8">
                     <i class="fas fa-filter text-4xl mb-2"></i>
                     <p>No data found for selected filter</p>
                 </td>
@@ -492,6 +617,7 @@ function renderHistoryTable(data) {
                 <td><span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">${session.sessionId}</span></td>
                 <td class="font-semibold">${session.operator}</td>
                 <td>${session.product}</td>
+                <td class="text-center text-gray-600">${session.layers || 1}</td>
                 <td class="font-bold text-emerald-600">${session.Count}</td>
                 <td class="text-gray-600">${session.target}</td>
                 <td>
@@ -533,7 +659,7 @@ window.exportToExcel = function() {
     }
 
     const ws_data = [
-        ['Date', 'Time', 'Session ID', 'Operator', 'Product', 'Count', 'Target', 'Progress (%)', 'Duration', 'Downtime', 'Efficiency (%)', 'Status']
+        ['Date', 'Time', 'Session ID', 'Operator', 'Product', 'Layers', 'Count', 'Target', 'Progress (%)', 'Duration', 'Downtime', 'Efficiency (%)', 'Status']
     ];
 
     allHistoryData.forEach(session => {
@@ -548,6 +674,7 @@ window.exportToExcel = function() {
             session.sessionId,
             session.operator,
             session.product,
+            session.layers || 1,
             session.Count,
             session.target,
             progress,
@@ -563,7 +690,7 @@ window.exportToExcel = function() {
     
     // Set column widths
     ws['!cols'] = [
-        {wch: 12}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 20}, 
+        {wch: 12}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 8},
         {wch: 8}, {wch: 8}, {wch: 10}, {wch: 10},
         {wch: 10}, {wch: 10}, {wch: 12}
     ];
@@ -616,6 +743,7 @@ window.exportToPDF = function() {
             session.sessionId,
             session.operator,
             session.product,
+            session.layers || 1,
             session.Count,
             session.target,
             progress + '%',
@@ -627,16 +755,17 @@ window.exportToPDF = function() {
     });
 
     doc.autoTable({
-        head: [['Date/Time', 'Session', 'Operator', 'Product', 'Count', 'Target', 'Progress', 'Duration', 'Downtime', 'Eff.', 'Status']],
+        head: [['Date/Time', 'Session', 'Operator', 'Product', 'Layers', 'Count', 'Target', 'Progress', 'Duration', 'Downtime', 'Eff.', 'Status']],
         body: tableData,
         startY: 38,
         styles: { fontSize: 8 },
         headStyles: { fillColor: [102, 126, 234], fontStyle: 'bold' },
         columnStyles: {
-            4: { halign: 'right' },
+            4: { halign: 'center' },
             5: { halign: 'right' },
             6: { halign: 'right' },
-            9: { halign: 'right' }
+            7: { halign: 'right' },
+            10: { halign: 'right' }
         }
     });
     
@@ -665,3 +794,6 @@ function updateDateTime() {
 
 updateDateTime();
 setInterval(updateDateTime, 1000);
+
+// Load product history on startup
+loadProductHistory();
