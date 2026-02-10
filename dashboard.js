@@ -72,6 +72,16 @@ onValue(counterRef, (snapshot) => {
             deviceStatus.innerHTML = '<i class="fas fa-circle text-red-500 mr-1"></i> Device Offline';
         }
         
+        // Update idle status warning
+        const idleStatusContainer = document.getElementById('idleStatusContainer');
+        const idleStatus = document.getElementById('idleStatus');
+        if (data.idleStatus && data.idleStatus !== 'Active') {
+            idleStatusContainer.style.display = 'flex';
+            idleStatus.textContent = data.idleStatus;
+        } else {
+            idleStatusContainer.style.display = 'none';
+        }
+        
         if (data.lastUpdate) {
             const timestamp = Number(data.lastUpdate);
             const date = new Date(timestamp);
@@ -531,10 +541,6 @@ window.loadHistory = async function() {
         }
 
         allHistoryData = [];
-        let totalSessions = 0;
-        let totalProduction = 0;
-        let completedSessions = 0;
-        let totalEfficiency = 0;
 
         Object.keys(historyData).forEach(dateKey => {
             const dayData = historyData[dateKey];
@@ -547,23 +553,11 @@ window.loadHistory = async function() {
                         sessionId: sessionKey,
                         ...session
                     });
-                    
-                    totalSessions++;
-                    totalProduction += session.Count || 0;
-                    if (session.status === 'completed') completedSessions++;
-                    totalEfficiency += parseFloat(session.efficiency || 0);
                 });
             }
         });
 
         allHistoryData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-        document.getElementById('totalSessions').textContent = totalSessions;
-        document.getElementById('totalProduction').textContent = totalProduction;
-        document.getElementById('completedSessions').textContent = completedSessions;
-        
-        const avgEff = totalSessions > 0 ? (totalEfficiency / totalSessions).toFixed(1) : 0;
-        document.getElementById('avgEfficiency').textContent = avgEff + '%';
 
         renderHistoryTable(allHistoryData);
 
