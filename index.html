@@ -320,6 +320,11 @@
                                     <i class="fas fa-circle text-gray-400 mr-1"></i> Checking...
                                 </span>
                             </div>
+                            <div class="flex items-center gap-2" id="idleStatusContainer" style="display: none;">
+                                <span class="font-semibold text-sm text-orange-600" id="idleStatusText">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i> <span id="idleStatus"></span>
+                                </span>
+                            </div>
                         </div>
                         <div class="text-right">
                             <p class="text-xs text-gray-500 uppercase font-semibold">Last Update</p>
@@ -511,26 +516,6 @@
                     <i class="fas fa-times"></i>
                     Clear
                 </button>
-            </div>
-
-            <!-- Summary Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div class="stat-card">
-                    <p class="stat-label"><i class="fas fa-calendar-check mr-1"></i> Total Sessions</p>
-                    <p class="stat-value text-blue-600" id="totalSessions">0</p>
-                </div>
-                <div class="stat-card">
-                    <p class="stat-label"><i class="fas fa-box mr-1"></i> Total Production</p>
-                    <p class="stat-value text-emerald-600" id="totalProduction">0</p>
-                </div>
-                <div class="stat-card">
-                    <p class="stat-label"><i class="fas fa-check-circle mr-1"></i> Completed</p>
-                    <p class="stat-value text-green-600" id="completedSessions">0</p>
-                </div>
-                <div class="stat-card">
-                    <p class="stat-label"><i class="fas fa-gauge-high mr-1"></i> Avg Efficiency</p>
-                    <p class="stat-value text-purple-600" id="avgEfficiency">0%</p>
-                </div>
             </div>
 
             <!-- History Table -->
